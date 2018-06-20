@@ -1,0 +1,9 @@
+library("devtools")
+require("Rfacebook")
+library("RCurl")
+library("rjson")
+
+token <- 'EAACEdEose0cBAMwg6WvLgw5wzPh654tnvZB745NWmC1SrZCsA8zU5jBadZCKLDaWrr3zXWZAxOtGsZB0DQAKdzERYWyJTjQznUVzbW4l83ereitS9eJbXrKDXiqgUERlGKN3hadus6ZATiIvW4VeVxIunYDsrlft8aSSpxDfo9ZAyxBOHEakbHspQd9vUyvGy2bQuykBPwWtAZDZD'
+me <- getUsers("me", token, private_info=TRUE)
+my_likes <- getLikes(user="me", token=token)
+
