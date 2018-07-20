@@ -1,0 +1,1180 @@
+
+#Wordcloud
+library(datasets)
+library(plotly)
+library(plotrix)
+library(NLP)
+library(RColorBrewer)
+library(tm)
+library(dplyr)
+library(wordcloud)
+library(wordcloud2)
+library(ggplot2)
+library(syuzhet)
+library(quanteda)
+library("SnowballC")
+
+#Interface
+library(shiny)
+library(shinydashboard)
+library(DT)
+library(shinyjs)
+library(stringr)
+library(googleVis)
+library(scatterplot3d)
+
+
+
+library(shinyAce)
+library(mailR)
+library(devtools)
+library(sendmailR)
+library(sqldf)
+library(RSQLite)
+
+
+
+
+shinyServer(function(input, output,session) {
+ 
+  db <- dbConnect(SQLite(), dbname="AppAdministrators.db")
+  
+  
+  USER <- reactiveValues(Logged = FALSE)
+  
+  observeEvent(input$login, {
+ if(input$username!="" && input$password!=""){
+    c<-sqldf("SELECT * FROM DataManagers ", dbname = "AppAdministrators.db")  
+    nrow(c)
+    sta<- 0;
+
+    for (row in 1:nrow(c)) {
+      username <- c[row, "Username"]
+      passwordd  <- c[row, "Password"]
+      
+    
+      t<- grepl(input$username, username)
+      f<- grepl(input$password, passwordd)
+      if(t == TRUE & f == TRUE) {
+        sta<- sta+1
+      }
+    
+    }
+    if(sta>0){
+      USER$Logged <- TRUE
+      output$well = renderText("Welcome Mr/Ms.")
+      output$valid = renderText(input$username)
+    }
+   
+    
+    else{
+      output$message = renderText("Invalid user name or password,please try again!")
+      
+      show("message")
+      
+      
+      delay(10000, hide("message", anim = TRUE, animType = "fade"))
+      
+    }
+ }
+    else{
+      output$message = renderText("Enter user name or password,please!!!")
+      
+      show("message")
+      
+    }
+    
+    
+  })
+  observeEvent(input$logout,{
+    USER$Logged<-FALSE
+  })
+  
+
+  output$app <- renderUI(
+    if (!isTRUE(USER$Logged)) {
+      fluidRow(column(width=4, offset = 4,
+                      wellPanel(id = 'panel_login',
+                                textInput('username', 'Username:'),
+                                passwordInput('password', 'Password:'),
+                                div(actionButton('login', 'Log in'),actionButton('reset', 'Reset'),actionButton('exit', 'Exit'), style='text-align: center;')
+                      ),
+                      textOutput("message")
+      ))
+    } else {
+                   # logoutt<- reactiveValues(Logout = FALSE)
+      
+                   fluidPage(theme="css.css",
+     
+                                 
+                                 
+                                 fileInput("file","Upload file"),
+                                 selectInput("x","Choose variable x",choices = c("ID","Country","Department","Wait.time","Minutes"," Vote.status")),
+                                 selectInput("y","Choose variable y",choices = c("Department","ID","Country","Wait.time","Minutes"," Vote.status")),
+                            
+                                 selectInput("models","Download model",choices=c("Bargraph","piechart","wordcloud","scatterplot")),
+                                 downloadButton("downloadModels","Download")
+                                 
+                                 
+                               )
+                                 fluidRow(
+                                    useShinyjs(),
+                                  actionButton("logout","LOGOUT"),  
+                                   tabsetPanel(id="navbar1",
+                                               tabPanel("HOME",textOutput("home")),
+                                               tabPanel("UPLOAD FILE",uiOutput("put_file")),
+                                               tabPanel("UPLOADED DATA",tableOutput("uploaded_data")),
+                                               tabPanel("STATISTICS",uiOutput("statistics")),
+                                               # tabPanel("BARGRAPH",plotOutput("bargraph")),
+                                               # tabPanel("PIECHART",plotOutput("piechart",width="99%")),
+                                               tabPanel("SENTIMENT ANALYSIS",uiOutput("simple")),
+                                               tabPanel("DEPARTMENT PERFORMANCE",uiOutput("department")),
+                                               tabPanel("COMMUNICATE",uiOutput("communicate")),
+                                               tabPanel("OTHERS",uiOutput("other")),
+                                               tabPanel("HELP",uiOutput("help"))
+                                               
+                                   )
+                                 )
+                                 
+          
+    } )
+  output$help<-renderUI({
+    mainPanel(
+     tags$h4("WELCOME TO NEW VISION APP USE GUIDELINES:"),
+     
+     tags$h5("Guideline 1:"),
+     tags$p("Authorized app user must first upload a file to be analyzed.To do this,click 'Upload File' 
+              Under Tab Panel and then locate the directory of the file containing data to be analyzed,then finally upload it.
+            To view the uploaded data,click 'Uploaded Data' under Tab Panel."),
+      tags$h5("Guideline 2:"),
+     tags$p("To analyze data using various models,click 'statistics' under Tab panel and then select
+             model of choice to analyze data.Such analysis models include pie chart,bar graph and scatterplot. 
+            "),
+     
+     tags$h5("Guideline 3:"),
+     tags$p("Under 'sentiment analysis', app user can select wordcloud,chat,country,time and bar graph Analysis.
+             Wordcloud enables user to view most used texts within chat content and see them in a bar graph under 'CHAT'
+             Under 'Bar graph analysis',app user can determine most hardworking operator.
+             Under 'Country',user is able to determine number of clients/participants per country.
+             Under 'TIME',number of participants per hour of the day can be seen.
+            "),
+     
+     tags$h5("Guideline 4:"),
+     tags$p("Under 'department performance',the user can determine which department,most clients 
+             have interacted with evaluated per country. 
+            "),
+     
+     tags$h5("Guideline 5:"),
+     tags$p("Under 'communication',app user can send an email containing  message
+             to appropriate operator.
+            "),
+     tags$h5("Guideline 6:"),
+     tags$p("Under 'Others',app user can select system assistant and see how many chats he/she
+             has interacted with and as well as on a specific date.
+            ")
+    
+    )
+    
+  })
+  
+  
+  output$put_file<-renderUI({
+    sidebarLayout(
+      sidebarPanel(width = 3,
+        fileInput("file","Upload file"),
+        
+        
+        
+        selectInput("x","Choose variable x",choices = c("ID","Country","Department","Wait.time","Minutes"," Vote.status")),
+        selectInput("y","Choose variable y",choices = c("Department","ID","Country","Wait.time","Minutes"," Vote.status")),
+        
+        
+        
+        tags$br(),tags$br(),
+        tags$br(),
+        
+        
+        
+        selectInput("models","Download model",choices=c("Bargraph","piechart","wordcloud","scatterplot")),
+        downloadButton("downloadModels","Download")
+        
+        
+      ),
+      mainPanel()
+    )
+  })   
+  #Get data from the file and render it in a table  
+  output$uploaded_data<-renderTable({
+    data() 
+    
+  },height = 400,width = 1000)
+  
+  data <- reactive({
+    file1 <- input$file
+    if (is.null(file1)) {
+      return()
+    }
+    info<-read.csv(file=file1$datapath)
+    info[is.na(info)]<-0
+    return(info)
+  })
+  
+  output$sum <- renderTable({
+    if (is.null(data())) {
+      return()
+    }
+    summary(data())[,1:1]
+  }) 
+  
+  #plotting Bar graph using this funtion
+  
+  output$bargraph<-renderPlot({
+    ggplot(data(), aes(x=get(input$x),y=get(input$y),fill = get(input$y)))+
+      xlab(input$x)+
+      ylab(input$y)+
+      labs(fill=input$y)+
+      geom_bar(stat="identity",position="dodge") 
+  })
+  
+  
+  #plotting pie chart using this funtion
+  output$piechart<-renderPlot({
+    piePlotData = aggregate(formula(paste0(".~",input$y)), data(), sum)
+    labels<-piePlotData[[input$y]]
+    pie3D(piePlotData[[input$x]], labels = piePlotData[[input$y]],explode=0.1,theta=pi/6,mar=c(0,0,0,0))
+
+  })
+  
+  
+  
+  output$wordcloud<-renderPlot({
+    mydata<-data()
+    docs <- Corpus(VectorSource(mydata$Chat.content))
+    toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+    docs <- tm_map(docs, toSpace, "/")
+    docs <- tm_map(docs, toSpace, "@")
+    docs <- tm_map(docs, toSpace, "\\|")
+  
+    docs <- tm_map(docs, content_transformer(tolower))
+   
+    docs <- tm_map(docs, removeNumbers)
+
+    docs <- tm_map(docs, removeWords, stopwords("english"))
+   
+    docs <- tm_map(docs, removeWords, c("chat","system","https","the","you","vision","group","engoru","stellamaris","eatuhaire","assistant","joseph","simon","peter","vizuri.visiongroup.co.ug","www.visiongroup.co.ug","banyu","newvision.co.ug","closed","accepted","live","elizabeth","atuhaire","support","http","paul","josephbanyu","jbanyu","ochen","nabisere","peter")) 
+   
+    docs <- tm_map(docs, removePunctuation)
+  
+    docs <- tm_map(docs, stripWhitespace)
+   
+    dtm <- TermDocumentMatrix(docs)
+    m <- as.matrix(dtm)
+   
+    v <- sort(rowSums(m),decreasing=TRUE)
+    d <- data.frame(word = names(v),freq=v)
+   
+    set.seed(1234)
+    wordcloud(words = d$word, freq = d$freq, min.freq = 4, max.words=300, random.order=FALSE, rot.per=0.2,colors=brewer.pal(8, "Dark2"))
+    
+    
+  })
+  output$simple<-renderUI({
+    
+    sidebarLayout(
+      sidebarPanel(id="sidebar",
+                   
+                   
+                   selectInput("chat", "SENTIMENT ANALYSIS",
+                               c("select analysis tool","WORDCLOUD","CHAT","BAR GRAPH ANALYSIS","COUNTRY","TIME"), "Graphics")
+      ),
+      
+      mainPanel(id="mypanel",
+                tags$br()  ,  
+                plotOutput("kk")
+      )
+    ) 
+    
+    
+  })
+  output$kk <- renderPlot({
+    
+    if (input$chat == "WORDCLOUD") { 
+      mydata<-data()
+      mycorpus<-Corpus(VectorSource(mydata$Chat.content))
+      myfunction<-content_transformer(function(x,pattern) gsub(pattern,"",x))
+      
+      my_cleaned_corpus<-tm_map(mycorpus,myfunction,"/")
+      my_cleaned_corpus<-tm_map(my_cleaned_corpus,myfunction,"@")
+      my_cleaned_corpus<-tm_map(my_cleaned_corpus,myfunction,"\\|")
+      
+      my_cleaned_corpus<-tm_map(my_cleaned_corpus,content_transformer(tolower))
+      my_cleaned_corpus <- tm_map( my_cleaned_corpus, removeWords, c("chat","system","https","engoru","stellamaris","eatuhaire","assistant","joseph","simon","peter","vizuri.visiongroup.co.ug","www.visiongroup.co.ug","banyu","newvision.co.ug","closed","accepted","live","elizabeth","atuhaire","support","http","paul","josephbanyu","jbanyu","ochen","nabisere","peter")) 
+      my_cleaned_corpus<-tm_map(my_cleaned_corpus,removePunctuation)
+      my_cleaned_corpus<-tm_map(my_cleaned_corpus,stripWhitespace)
+      
+      
+      mytdm<-TermDocumentMatrix(my_cleaned_corpus)
+      m<-as.matrix(mytdm)
+      #View(m)
+      words<-sort(rowSums(m),decreasing = TRUE)
+      mydf<-data.frame(Word=names(words),freq=words)
+      #View(mydf)
+      wordcloud(words=mydf$Word,freq=mydf$freq,min.freq = 3,max.words = 500,random.order = FALSE,rot.per = 0.36,colors = brewer.pal(8,"Dark2")) 
+      
+    } 
+    else if(input$chat=="BAR GRAPH ANALYSIS"){
+      mydata<- data()
+      operatives<-c('joseph','stellamaris','SimonPeter','atuhaire','PaulOchen')
+      dv<-c('joseph banyu','stellamaris Nabisere','Simon Peter  Engoru','atuhaire elizabeth','Paul Ochen')
+      rt<- 0;
+      jo<- 0;
+      st<- 0;
+      si<- 0;
+      at<- 0;
+      pa<- 0;
+      
+      for(i in 1:length(dv)){
+        for(row in 1:nrow(mydata)) {
+          
+          
+          
+          price <- mydata[row, "Chat.content"]
+          t<- grepl(dv[i], price)
+          if(t == TRUE ) {
+            
+            rt<- rt+1
+          }
+          
+        }
+        
+        if(dv[i]=='joseph banyu'){
+          jo<-rt
+          
+        }
+        else if(dv[i]=='stellamaris Nabisere'){
+          st<-(rt-jo)
+          
+        }
+        
+        else if(dv[i]=='Simon Peter  Engoru'){
+          si<-(rt-jo-st)
+        }
+        else if(dv[i]=='atuhaire elizabeth'){
+          at<-(rt-jo-st-si)
+          
+        }
+        
+        else if(dv[i]=='Paul Ochen'){
+          pa<-(rt-jo-st-si-at)
+          
+        }
+        
+        
+        
+        
+      }
+      
+      print(jo) 
+      print(st)
+      print(si)
+      print(at)
+      print(pa)
+      
+      x = c(jo,st,si,at,pa) 
+      
+      
+      
+      
+      real<-data.frame(operatives,x)
+      real
+      
+      
+      
+      barplot(real$x, las = 1, names.arg = real$operatives,col = brewer.pal(5, "Blues"), main ="BAR GRAPH SHOWING NUMBER OF CHATS OPERATIVES CONDUCTED WITH IN CHAT CONTENT",ylab = "Number of Chats") 
+      
+      
+      
+      
+    }
+    else if(input$chat=="OTHER ANALYSIS"){
+      sidebarLayout(
+        sidebarPanel(
+          
+          
+          selectInput("date", "select any date to find out number of chats:",
+                      c("2017-07-07" = "2017-07-07",
+                        "2017-07-06" = "2017-07-06",
+                        "2017-07-05" = "2017-07-05",
+                        "2017-07-04" = "2017-07-04",
+                        "2017-07-03" = "2017-07-03",
+                        "2017-07-02" = "2017-07-02",
+                        "2017-07-01" = "2017-07-01",
+                        "2017-06-30" = "2017-06-30",
+                        "2017-06-29" = "2017-06-29",
+                        "2017-06-28" = "2017-06-28",
+                        "2017-06-27" = "2017-06-27",
+                        "2017-06-26" = "2017-06-26",
+                        "2017-06-25" = "2017-06-25",
+                        "2017-06-24" = "2017-06-24",
+                        "2017-06-23" = "2017-06-23",
+                        "2017-06-22" = "2017-06-22",
+                        "2017-06-21" = "2017-06-21",
+                        "2017-06-20" = "2017-06-20",
+                        "2017-06-19" = "2017-06-19",
+                        "2017-06-18" = "2017-06-18",
+                        "2017-06-17" = "2017-06-17",
+                        "2017-06-16" = "2017-06-16",
+                        "2017-06-15" = "2017-06-15",
+                        "2017-06-14" = "2017-06-14",
+                        "2017-06-13" = "2017-06-13",
+                        "2017-06-12" = "2017-06-12",
+                        "2017-06-11" = "2017-06-11",
+                        "2017-06-10" = "2017-06-10",
+                        "2017-06-09" = "2017-06-09",
+                        "2017-06-08" = "2017-06-08",
+                        "2017-06-07" = "2017-06-07",
+                        "2017-06-06" = "2017-06-06",
+                        "2017-06-05" = "2017-06-05",
+                        "2017-06-04" = "2017-06-04",
+                        "2017-06-03" = "2017-06-03",
+                        "2017-06-02" = "2017-06-02",
+                        "2017-06-01" = "2017-06-01"
+                      )
+          )
+          
+          
+        ),
+        
+        mainPanel(
+          
+          
+          uiOutput("result"),
+          uiOutput("datedisplay")
+        )
+      ) 
+      
+      
+    }
+    else if(input$chat=="CHAT"){
+      mydata <- data()
+      #mydata<-read.csv( mydata$datapath, header = input$header)
+      docs <- Corpus(VectorSource(mydata$Chat.content))
+      #inspect(docs)
+      toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+      docs <- tm_map(docs, toSpace, "/")
+      docs <- tm_map(docs, toSpace, "@")
+      docs <- tm_map(docs, toSpace, "\\|")
+      # Convert the text to lower case
+      docs <- tm_map(docs, content_transformer(tolower))
+      # Remove numbers
+      docs <- tm_map(docs, removeNumbers)
+      # Remove english common stopwords
+      #View(stopwords("english")) 
+      docs <- tm_map(docs, removeWords, stopwords("english"))
+      # Remove your own stop word
+      # specify your stopwords as a character vector
+      docs <- tm_map(docs, removeWords, c("chat","system","https","engoru","stellamaris","eatuhaire","assistant","joseph","simon","peter","vizuri.visiongroup.co.ug","www.visiongroup.co.ug","banyu","newvision.co.ug","closed","accepted","live","elizabeth","atuhaire","support","http","paul","josephbanyu","jbanyu","ochen","nabisere","peter")) 
+      # Remove punctuations
+      docs <- tm_map(docs, removePunctuation)
+      # Eliminate extra white spaces
+      docs <- tm_map(docs, stripWhitespace)
+      # Text stemming
+      # docs <- tm_map(docs, stemDocument)
+      dtm <- TermDocumentMatrix(docs)
+      m <- as.matrix(dtm)
+      
+      v <- sort(rowSums(m),decreasing=TRUE)
+      d <- data.frame(word = names(v),freq=v)
+    
+      
+      barplot(d[1:20,]$freq, las = 2, names.arg = d[1:20,]$word,col ="lightblue", main ="BAR GRAPH SHOWING 20 MOST USED WORDS IN THE CHAT CONTENT",ylab = "Word frequencies")
+      
+      
+      
+    }
+    else if(input$chat=="COUNTRY"){
+      mydata <- data()
+      barplot(table(mydata$Country),
+              main="Number of participants from different Countries",
+              xlab="Country",
+              ylab="Number of participates",
+              border="red",
+              las = 2,
+              col="blue",
+              density=50
+      )
+      
+    }
+    else if(input$chat=="TIME"){
+      mydata <- data()
+      k<-c(0:23)
+      y<-c(0:60)
+      sum0<-0
+      sum1<-0
+      sum2<-0
+      sum3<-0
+      sum4<-0
+      sum5<-0
+      sum6<-0
+      sum7<-0
+      sum8<-0
+      sum9<-0
+      sum10<-0
+      sum11<-0
+      sum12<-0
+      sum13<-0
+      sum14<-0
+      sum15<-0
+      sum16<-0
+      sum17<-0
+      sum18<-0
+      sum19<-0
+      sum20<-0
+      sum21<-0
+      sum22<-0
+      sum23<-0
+      for (row in 1:nrow(mydata)) {
+        price <- mydata[row, "Chat.content"]
+        for(i in k){
+          for(j in y){
+            a<-str_pad(i,2,pad = '0')
+            b<-str_pad(j,2,pad = '0')
+            c<-str_pad(':',1,pad = '0')
+            
+            o<-paste0(a,c,b,c)
+            
+            t<- grepl(o, price)
+            if(t == TRUE) {
+              
+              if(str_extract(o,'^.{2}')=="00"){
+                sum0<-sum0+1
+              }
+              else if(str_extract(o,'^.{2}')=="01"){
+                sum1<-sum1+1
+              }
+              
+              else if(str_extract(o,'^.{2}')=="02"){
+                sum2<-sum2+1
+              }
+              else if(str_extract(o,'^.{2}')=="03"){
+                sum3<-sum3+1
+              }
+              else if(str_extract(o,'^.{2}')=="04"){
+                sum4<-sum4+1
+              }
+              else if(str_extract(o,'^.{2}')=="05"){
+                sum5<-sum5+1
+              }
+              else if(str_extract(o,'^.{2}')=="06"){
+                sum6<-sum6+1
+              }
+              else if(str_extract(o,'^.{2}')=="07"){
+                sum7<-sum7+1
+              }
+              else if(str_extract(o,'^.{2}')=="08"){
+                sum8<-sum8+1
+              }
+              else if(str_extract(o,'^.{2}')=="09"){
+                sum9<-sum9+1
+              }
+              else if(str_extract(o,'^.{2}')=="10"){
+                sum10<-sum10+1
+              } 
+              else if(str_extract(o,'^.{2}')=="11"){
+                sum11<-sum11+1
+              }
+              else if(str_extract(o,'^.{2}')=="12"){
+                sum12<-sum12+1
+              }
+              else if(str_extract(o,'^.{2}')=="13"){
+                sum13<-sum13+1
+              }
+              else if(str_extract(o,'^.{2}')=="14"){
+                sum14<-sum14+1
+              }
+              else if(str_extract(o,'^.{2}')=="15"){
+                sum15<-sum15+1
+              }
+              
+              else if(str_extract(o,'^.{2}')=="16"){
+                sum16<-sum16+1
+              }
+              
+              else if(str_extract(o,'^.{2}')=="17"){
+                
+                sum17<-sum17+1
+              }
+              
+              else if(str_extract(o,'^.{2}')=="18"){
+                
+                sum18<-sum18+1
+              }
+              else if(str_extract(o,'^.{2}')=="19"){
+                
+                sum19<-sum19+1
+              }
+              else if(str_extract(o,'^.{2}')=="20"){
+                
+                sum20<-sum20+1
+              }
+              else if(str_extract(o,'^.{2}')=="21"){
+                
+                sum21<-sum21+1
+              }
+              else if(str_extract(o,'^.{2}')=="22"){
+                
+                sum22<-sum22+1
+              }
+              else if(str_extract(o,'^.{2}')=="23"){
+                
+                sum23<-sum23+1
+              }
+              
+            }
+            
+          }
+        }
+        
+      }
+      
+      pe<-c('00','01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23')
+      xx<-c(sum0,sum1,sum2,sum3,sum4,sum5,sum6,sum7,sum8,sum9,sum10,sum11,sum12,sum13,sum14,sum15,sum16,sum17,sum18,sum19,sum20,sum21,sum22,sum23)
+      rea<-data.frame(pe,xx)
+      rea
+      barplot(rea$xx, las = 1, names.arg = rea$pe,col = brewer.pal(5, "Blues"), main ="BAR GRAPH SHOWING NUMBER OF ACTIVE CHATS ON DIFFERENT HOURS OF THE DAY ",ylab = "Average Number of Chat Sessions",xlab = "hours in 24 hour clock") 
+      
+      
+      
+    }
+    
+    
+    
+    
+    
+  }) 
+  
+  output$department<-renderUI({
+    sidebarLayout(
+      sidebarPanel(
+        selectInput("name", "Choose Department:",
+                    c("Hot News" = "Hot News",
+                      "customer support" = "customer support",
+                      "Advertising" = "Advertising",
+                      "Editorial" = "Editorial"
+                      
+                    )
+        )
+        
+        
+      ),
+      
+      mainPanel(
+        
+        plotOutput("department_analysis")
+        
+      )
+    )
+    
+  })   
+  
+  
+  
+  
+  
+  #simple analysis from chat content  
+  output$communicate<-renderUI({
+    sidebarLayout(
+      sidebarPanel(
+        textInput("from", "From:", value="asingwire50dallington@gmail.com"),
+        textInput("to", "To:", value="charismasharp@gmail.com"),
+        textInput("subject", "Subject:", value="xxxxxxxxxxx"),
+        fileInput("file_contents", label = "Upload file", 
+                  accept = c(
+                    "text/csv",
+                    "text/comma-separated-values,text/plain",
+                    ".csv")),
+        actionButton("send", "Send mail")
+      ),
+      
+      
+      mainPanel(    
+        aceEditor("message_body", value="write message here")
+      )
+      
+    )
+    
+  })
+  
+  
+  
+  
+  observeEvent(input$send, {
+    sender <- input$from
+    recipient <- input$to
+    subject = input$subject
+    body = input$message_body
+    
+    
+    
+    
+    tryCatch(
+      send.mail(from = sender,
+                to = recipient,
+                subject = subject,
+                body = body,
+                smtp = list(host.name = "smtp.gmail.com", port = 465, user.name = "kalema arnold", passwd = "KarnoldKK", ssl = TRUE),
+                authenticate = TRUE,
+                send = TRUE,
+                attach.files = input$file_contents
+      )
+    )
+    
+  })
+  observeEvent(input$reset, {
+    updateTextInput(session, "username", value = "")
+    updateTextInput(session, "password", value = "")
+  })
+  
+  observeEvent(input$logout,{
+    USER$Logged <- FALSE
+
+  })
+  observeEvent(input$exit, {
+    stopApp(returnValue = invisible())
+  })
+  
+  
+  observe({
+    if(is.null(input$send) || input$send==0) return(NULL)
+    from <- isolate(input$from)
+    to <- isolate(input$to)
+    subject <- isolate(input$subject)
+    msg <- isolate(input$message_body)
+    sendmail(from, to, subject, msg)
+  })
+  
+  output$result <- renderText({
+    mydata<- data()
+    rt<- 0;
+    
+    for (row in 1:nrow(mydata)) {
+      price <- mydata[row, "Chat.content"]
+      
+      t<- grepl(input$assistant, price)
+      if(t == TRUE) {
+        
+        rt<- rt+1
+        
+        
+      }
+      
+      
+    }
+    
+    paste(input$assistant," was involved in ",rt," chats")
+    
+    
+  })
+  
+  
+  output$datedisplay <- renderText({
+    mydata<- data() 
+    r<- 0;
+    
+    for (row in 1:nrow(mydata)) {
+      da <- mydata[row, "Chat.content"]
+      
+      h<- grepl(input$date, da)
+      if(h == TRUE) {
+        
+        r<- r+1
+        
+      }
+      
+    }
+    
+    paste(input$date," had ",r," chats")
+  })
+  
+  output$statistics<-renderUI({
+    
+    
+    sidebarLayout(
+      
+      sidebarPanel(
+        selectInput("select_model", "STATISTICS",
+                    c("select analysis tool","PIE CHART","BAR GRAPH"), "stat")
+      ),
+      
+      mainPanel(id="xxxx",
+         uiOutput("pp")      
+      )
+    )
+   
+    
+  })
+  
+  
+  output$pp<-renderUI({
+    
+    if(input$select_model=="PIE CHART"){
+      plotOutput("piechart")
+    }
+    else if(input$select_model=="BAR GRAPH"){
+      plotOutput("bargraph")
+    }
+    
+    
+    
+  })
+  
+  
+  
+  
+  
+  
+  output$other<-renderUI({
+    
+    
+    sidebarLayout(
+      
+      sidebarPanel(
+        selectInput("assistant", "Choose System assistant:",
+                    c("System assistant:","joseph banyu" = "joseph banyu",
+                      "stellamaris Nabisere" = "stellamaris Nabisere",
+                      "Simon Peter  Engoru" = "Simon Peter  Engoru",
+                      "atuhaire elizabeth" = "atuhaire elizabeth",
+                      "Paul Ochen" = "Paul Ochen"
+                    )
+        ),
+        
+        selectInput("date", "Choose Date:",
+                    c("Date","2017-07-07" = "2017-07-07",
+                      "2017-07-06" = "2017-07-06",
+                      "2017-07-05" = "2017-07-05",
+                      "2017-07-04" = "2017-07-04",
+                      "2017-07-03" = "2017-07-03",
+                      "2017-07-02" = "2017-07-02",
+                      "2017-07-01" = "2017-07-01",
+                      "2017-06-30" = "2017-06-30",
+                      "2017-06-29" = "2017-06-29",
+                      "2017-06-28" = "2017-06-28",
+                      "2017-06-27" = "2017-06-27",
+                      "2017-06-26" = "2017-06-26",
+                      "2017-06-25" = "2017-06-25",
+                      "2017-06-24" = "2017-06-24",
+                      "2017-06-23" = "2017-06-23",
+                      "2017-06-22" = "2017-06-22",
+                      "2017-06-21" = "2017-06-21",
+                      "2017-06-20" = "2017-06-20",
+                      "2017-06-19" = "2017-06-19",
+                      "2017-06-18" = "2017-06-18",
+                      "2017-06-17" = "2017-06-17",
+                      "2017-06-16" = "2017-06-16",
+                      "2017-06-15" = "2017-06-15",
+                      "2017-06-14" = "2017-06-14",
+                      "2017-06-13" = "2017-06-13",
+                      "2017-06-12" = "2017-06-12",
+                      "2017-06-11" = "2017-06-11",
+                      "2017-06-10" = "2017-06-10",
+                      "2017-06-09" = "2017-06-09",
+                      "2017-06-08" = "2017-06-08",
+                      "2017-06-07" = "2017-06-07",
+                      "2017-06-06" = "2017-06-06",
+                      "2017-06-05" = "2017-06-05",
+                      "2017-06-04" = "2017-06-04",
+                      "2017-06-03" = "2017-06-03",
+                      "2017-06-02" = "2017-06-02",
+                      "2017-06-01" = "2017-06-01"
+                    )
+        ),
+        paste("Guideline: Choose any operator of the CO & see how many
+              number of chats he or she has been involved in total and on a specific date as well.
+              
+              
+              ")
+        
+        
+        ),
+      
+      mainPanel(id="xxxx",
+                tags$br(),
+                box(title="Total Number",uiOutput("result"),collapsible = TRUE,status = "success",height =180,solidHeader = TRUE ),
+                box(title="On a certain Date",uiOutput("datedisplay"),collapsible = TRUE,status = "success",height =180,solidHeader = TRUE)
+      )
+      ) 
+    
+  })
+  
+  output$sms<-renderMenu({
+    
+    received_sms<-apply(read.csv("messages.csv"),1,function(row){
+      messageItem(from=row[["from"]],message=row[["message"]])  
+      
+    })
+    dropdownMenu(type="messages",.list=received_sms)
+  })   
+  
+  output$department_analysis<- renderPlot({
+    
+    mydata<- data()
+    sumu<-0
+    sumt<-0
+    sumuk<-0
+    sumj<-0
+    sumh<-0
+    sums<-0
+    sumus<-0
+    sumua<-0
+    sumc<-0
+    suma<-0
+    sumaz<-0
+    sume<-0
+    sumom<-0
+    sumco<-0
+    sumM<-0
+    sumq<-0
+    sumd<-0
+    sumI<-0
+    sumN<-0
+    sumg<-0
+    sumge<-0
+    summa<-0
+    sumch<-0
+    sumrw<-0
+    sumro<-0
+    sumet<-0
+    sumIn<-0
+    sumza<-0
+    sumje<-0
+    summal<-0
+    sumss<-0
+    sumke<-0
+    sumno<-0
+    sumba<-0
+    sumcam<-0
+    for (row in 1:nrow(mydata)) {
+      country <- mydata[row, "Country"]
+      dept <- mydata[row, "Department"]
+      
+      if(dept ==input$name) {
+        if(country=="Uganda"){
+          
+          sumu<-sumu+1
+        }
+        else if(country=="Tanzania"){
+          
+          sumt<-sumt+1
+        }
+        else if(country=="United Kingdom"){
+          
+          sumuk<-sumuk+1
+        }
+        else if(country=="Japan"){
+          
+          sumj<-sumj+1
+        }
+        else if(country=="Hong Kong"){
+          
+          sumh<-sumh+1
+        }
+        else if(country=="South Africa"){
+          
+          sums<-sums+1
+        }
+        else if(country=="United States"){
+          
+          sumus<-sumus+1
+        }
+        else  if(country=="United Arab Emirates"){
+          
+          sumua<-sumua+1
+        }
+        else if(country=="Canada"){
+          
+          sumc<-sumc+1
+        }
+        else if(country=="Australia"){
+          
+          suma<-suma+1
+        }
+        else if(country=="Azerbaijan"){
+          
+          sumaz<-sumaz+1
+        }
+        else if(country=="Egypt"){
+          
+          sume<-sume+1
+        }
+        else if(country=="Oman"){
+          
+          sumom<-sumom+1
+        }
+        else if(country=="Congo"){
+          
+          sumco<-sumco+1
+        }
+        else if(country=="Morocco"){
+          
+          sumM<-sumM+1
+        }
+        else if(country=="Qatar"){
+          
+          sumq<-sumq+1
+        }
+        else if(country=="Denmark"){
+          
+          sumd<-sumd+1
+        }
+        else if(country=="Iraq"){
+          
+          sumI<-sumI+1
+        }
+        else if(country=="Netherlands"){
+          
+          sumN<-sumN+1
+        }
+        else if(country=="Ghana"){
+          
+          sumg<-sumg+1
+        }
+        else if(country=="Germany"){
+          
+          sumge<-sumge+1
+        }
+        else if(country=="Mauritius"){
+          
+          summa<-summa+1
+        }
+        else if(country=="China"){
+          
+          sumch<-sumch+1
+        }
+        else if(country=="Rwanda"){
+          
+          sumrw<-sumrw+1
+        }
+        else if(country=="Republic of Moldova"){
+          
+          sumro<-sumro+1
+        }
+        else if(country=="Ethiopia"){
+          
+          sumet<-sumet+1
+        }
+        else if(country=="India"){
+          
+          sumIn<-sumIn+1
+        } 
+        else if(country=="Zambia"){
+          
+          sumza<-sumza+1
+        }
+        else if(country=="Jersey"){
+          
+          sumje<-sumje+1
+        }
+        else if(country=="Malta"){
+          
+          summal<-summal+1
+        }
+        else if(country=="South Sudan"){
+          
+          sumss<-sumss+1
+        }
+        else if(country=="Kenya"){
+          
+          sumke<-sumke+1
+        }
+        else if(country=="Norway"){
+          
+          sumno<-sumno+1
+        }
+        else if(country=="Bangladesh"){
+          
+          sumba<-sumba+1
+        }
+        else if(country=="Cameroon"){
+          
+          sumcam<-sumcam+1
+        }
+      }
+      
+    }
+    #print(sumu)
+    
+    allsum<-sum(sumu,sumt,sumuk,sumj,sumh,sums,sumus,sumua,sumc,suma,sumaz,sume,sumom,sumco,sumM,sumq,sumd,sumI,sumN,sumg,sumge,summa,sumch,sumrw,sumro,sumet,sumIn,sumza,sumje,summal,sumss,sumke,sumno,sumba,sumcam)
+    divide<-c(sumu/allsum,sumt/allsum,sumuk/allsum,sumj/allsum,sumh/allsum,sums/allsum,sumus/allsum,sumua/allsum,sumc/allsum,suma/allsum,sumaz/allsum,sume/allsum,sumom/allsum,sumco/allsum,sumM/allsum,sumq/allsum,sumd/allsum,sumI/allsum,sumN/allsum,sumg/allsum,sumge/allsum,summa/allsum,sumch/allsum,sumrw/allsum,sumro/allsum,sumet/allsum,sumIn/allsum,sumza/allsum,sumje/allsum,summal/allsum,sumss/allsum,sumke/allsum,sumno/allsum,sumba/allsum,sumcam/allsum)
+    
+    plotdept<-c(sumu,sumt,sumuk,sumj,sumh,sums,sumus,sumua,sumc,suma,sumaz,sume,sumom,sumco,sumM,sumq,sumd,sumI,sumN,sumg,sumge,summa,sumch,sumrw,sumro,sumet,sumIn,sumza,sumje,summal,sumss,sumke,sumno,sumba,sumcam)
+    labb<-c('Ug','Tz','Uk','Jp','Hk','Sa','Us','UAE','CA','Aus','Aze','Egy','Oman','Congo','Moro','Qatar','Den','Irq','Neth','Gha','Ger','Mau','Chi','Rwa','ROM','Ethi','Ind','Zam','Jer','Mal','SS','Ken','Nor','Bang','Came')
+    
+    deptt<-data.frame(plotdept,labb)
+    
+    deptpro<-data.frame(divide,labb)
+    
+    barplot(deptt$plotdept, las = 2, names.arg = deptt$labb,col = brewer.pal(9, "Blues"), main ="BAR GRAPH SHOWING EVALUATION OF DEPARTMENT'S PERFORMANCE ON EACH COUNTRY",ylab = "Number of times Selected",xlab = "Country")
+    
+    # barplot(deptpro$divide, las = 2, names.arg = deptt$labb,col = brewer.pal(9, "Blues"), main ="Department selected by each country between 2017-06-01 and 2017-07-07",ylab = "Number of times Selected",xlab = "Country")
+    
+  })
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  #download visualization models
+  
+  output$downloadModels <- downloadHandler(
+    filename = "Models.png",
+    content = function(file) {
+      if(input$plot=="Bargraph"){
+        png(file)
+        bar<-ggplot(data(),type="l", aes(x=get((input$variablex)),y=get(input$variabley) ))+
+          xlab(input$variablex)+
+          ylab(input$variabley)+
+          geom_bar(stat="identity",position ="dodge",color ="blue")
+        print(bar)
+        dev.off()
+        
+      }
+      else if(input$plot=="piechart"){
+        
+        png(file)
+        pie<-pie(aggregate(formula(paste0(".~",input$variabley)), data(), sum)[[input$variablex]], labels = aggregate(formula(paste0(".~",input$variabley)), data(), sum)[[input$variabley]])
+        print(pie) 
+        dev.off()
+      }
+      
+      else if(input$plot=="wordcloud"){
+        png(file)
+        word<- wordcloud(words = dframe$word, freq = dframe$freq, min.freq = 3,max.words=500, random.order=FALSE, rot.per=0.5,colors=brewer.pal(8, "Dark2"))#wordcloud2(dframe, size=0.5,fontWeight = "normal",max.words=200, minRotation = pi/6, maxRotation = pi/6,color=brewer.pal(8,"Dark2"))
+        print(word)
+        dev.off()
+      }
+      else{
+        png(file)
+        sent<-ggplot(data=TotalSentiment, aes(x = sentiment, y = count))+geom_bar(aes(fill = sentiment), stat = "identity")+theme(legend.position = "none")+xlab("Sentiments")+ylab("Count")+ggtitle("Total Sentiment Score")
+        print(sent)    
+        dev.off()
+      }
+    }
+    
+  )
+ 
+   
+})
