@@ -11,6 +11,7 @@ library(wordcloud)
 library(wordcloud2)
 library(ggplot2)
 library(syuzhet)
+#library(igraph)
 library(quanteda)
 library("SnowballC")
 
@@ -108,12 +109,10 @@ shinyServer(function(input, output,session) {
      
                                  
                                  
-                                 fileInput("file","Upload file"),
-                                 selectInput("x","Choose variable x",choices = c("ID","Country","Department","Wait.time","Minutes"," Vote.status")),
-                                 selectInput("y","Choose variable y",choices = c("Department","ID","Country","Wait.time","Minutes"," Vote.status")),
-                            
-                                 selectInput("models","Download model",choices=c("Bargraph","piechart","wordcloud","scatterplot")),
-                                 downloadButton("downloadModels","Download")
+                                 fileInput("file","Upload file")
+                                 
+                                
+                                
                                  
                                  
                                )
@@ -125,12 +124,12 @@ shinyServer(function(input, output,session) {
                                                tabPanel("UPLOAD FILE",uiOutput("put_file")),
                                                tabPanel("UPLOADED DATA",tableOutput("uploaded_data")),
                                                tabPanel("STATISTICS",uiOutput("statistics")),
-                                               # tabPanel("BARGRAPH",plotOutput("bargraph")),
-                                               # tabPanel("PIECHART",plotOutput("piechart",width="99%")),
+                                              
                                                tabPanel("SENTIMENT ANALYSIS",uiOutput("simple")),
-                                               tabPanel("DEPARTMENT PERFORMANCE",uiOutput("department")),
+                                               tabPanel("DEPARTMENT ANALYSIS",uiOutput("department")),
                                                tabPanel("COMMUNICATE",uiOutput("communicate")),
                                                tabPanel("OTHERS",uiOutput("other")),
+                                               tabPanel("DOWNLOAD",uiOutput("downloads")),
                                                tabPanel("HELP",uiOutput("help"))
                                                
                                    )
@@ -182,27 +181,38 @@ shinyServer(function(input, output,session) {
     sidebarLayout(
       sidebarPanel(width = 3,
         fileInput("file","Upload file"),
+        fluidRow(
+      
+          selectInput("x","Download Model",choices=c("ID","Department")),
+          selectInput("y","Download Model",choices=c("Department","ID"))
+          
+        ),
         
-        
-        
-        selectInput("x","Choose variable x",choices = c("ID","Country","Department","Wait.time","Minutes"," Vote.status")),
-        selectInput("y","Choose variable y",choices = c("Department","ID","Country","Wait.time","Minutes"," Vote.status")),
-        
+       
         
         
         tags$br(),tags$br(),
-        tags$br(),
-        
-        
-        
-        selectInput("models","Download model",choices=c("Bargraph","piechart","wordcloud","scatterplot")),
-        downloadButton("downloadModels","Download")
+        tags$br()
         
         
       ),
       mainPanel()
     )
-  })   
+  }) 
+  output$downloads<-renderUI({
+    sidebarLayout(
+      sidebarPanel(width = 3,
+                   fluidRow(
+                     radioButtons("rad",label = "Select file input",choices = list("png","pdf")),
+                     selectInput("v_model","Download Model",choices=c("select download","PIE CHART","BAR GRAPH","WORDCLOUD","CHAT","BARGRAPH ANALYSIS","COUNTRY","TIME")),
+                     downloadButton(outputId = "down","Download")
+                   )
+          
+                   
+      ),
+      mainPanel()
+    )
+  }) 
   #Get data from the file and render it in a table  
   output$uploaded_data<-renderTable({
     data() 
@@ -229,19 +239,96 @@ shinyServer(function(input, output,session) {
   #plotting Bar graph using this funtion
   
   output$bargraph<-renderPlot({
-    ggplot(data(), aes(x=get(input$x),y=get(input$y),fill = get(input$y)))+
-      xlab(input$x)+
-      ylab(input$y)+
-      labs(fill=input$y)+
-      geom_bar(stat="identity",position="dodge") 
+    mydata<- data()
+    operatives<-c('joseph','stellamaris','SimonPeter','atuhaire','PaulOchen')
+    dv<-c('joseph banyu','stellamaris Nabisere','Simon Peter  Engoru','atuhaire elizabeth','Paul Ochen')
+    rt<- 0;
+    jo<- 0;
+    st<- 0;
+    si<- 0;
+    at<- 0;
+    pa<- 0;
+    
+    for(i in 1:length(dv)){
+      for(row in 1:nrow(mydata)) {
+        
+        
+        
+        price <- mydata[row, "Chat.content"]
+        t<- grepl(dv[i], price)
+        if(t == TRUE ) {
+          
+          rt<- rt+1
+        }
+        
+      }
+      
+      if(dv[i]=='joseph banyu'){
+        jo<-rt
+        
+      }
+      else if(dv[i]=='stellamaris Nabisere'){
+        st<-(rt-jo)
+        
+      }
+      
+      else if(dv[i]=='Simon Peter  Engoru'){
+        si<-(rt-jo-st)
+      }
+      else if(dv[i]=='atuhaire elizabeth'){
+        at<-(rt-jo-st-si)
+        
+      }
+      
+      else if(dv[i]=='Paul Ochen'){
+        pa<-(rt-jo-st-si-at)
+        
+      }
+      
+      
+      
+      
+    }
+    
+    print(jo) 
+    print(st)
+    print(si)
+    print(at)
+    print(pa)
+    
+    x = c(jo,st,si,at,pa) 
+    
+    
+    
+    
+    real<-data.frame(operatives,x)
+    real
+    
+    
+    
+    barplot(real$x, las = 1,
+            main ="BAR GRAPH SHOWING NUMBER OF CHATS OPERATIVES CONDUCTED WITH IN CHAT CONTENT",ylab = "Number of Chats",
+            legend =operatives, 
+            col = c("green","yellow","red","purple","blue")) 
+    
+    
   })
   
   
   #plotting pie chart using this funtion
   output$piechart<-renderPlot({
-    piePlotData = aggregate(formula(paste0(".~",input$y)), data(), sum)
+    mydata<-data()
+    piePlotData = aggregate(formula(paste0(".~",input$y)), mydata, sum)
+   
+    percent<-(piePlotData[[input$x]]/sum(piePlotData[[input$x]]))*100
+    percent<-round(percent,2)
+    
     labels<-piePlotData[[input$y]]
-    pie3D(piePlotData[[input$x]], labels = piePlotData[[input$y]],explode=0.1,theta=pi/6,mar=c(0,0,0,0))
+   
+    pie3D(piePlotData[[input$x]], main="Department Evaluation",labels=paste(labels,percent,"%"),explode=0.1,theta=pi/6,mar=c(0,0,0,0)
+          
+          
+          )
 
   })
   
@@ -254,27 +341,46 @@ shinyServer(function(input, output,session) {
     docs <- tm_map(docs, toSpace, "/")
     docs <- tm_map(docs, toSpace, "@")
     docs <- tm_map(docs, toSpace, "\\|")
-  
+    
     docs <- tm_map(docs, content_transformer(tolower))
-   
+    
     docs <- tm_map(docs, removeNumbers)
-
+    
     docs <- tm_map(docs, removeWords, stopwords("english"))
-   
-    docs <- tm_map(docs, removeWords, c("chat","system","https","the","you","vision","group","engoru","stellamaris","eatuhaire","assistant","joseph","simon","peter","vizuri.visiongroup.co.ug","www.visiongroup.co.ug","banyu","newvision.co.ug","closed","accepted","live","elizabeth","atuhaire","support","http","paul","josephbanyu","jbanyu","ochen","nabisere","peter")) 
-   
+    wordz<-c("chat","can","get","newvision","www","uganda","system","https"
+             ,"the","you","vision","group","engoru","stellamaris","eatuhaire"
+             ,"assistant","joseph","simon","peter","vizuri.visiongroup.co.ug",
+             "www.visiongroup.co.ug","banyu","newvision.co.ug","closed","accepted",
+             "live","elizabeth","atuhaire","support","http","paul","josephbanyu","jbanyu",
+             "ochen","nabisere","peter","office","article","gmailcom","inquiries","bukedde",
+             "click","directlysengoru","number","june","letter","daniel","stellalule",
+             "vpgvisiongroupcoug","samuel","denis","newspaper","anjana","also","phone","advertising",
+             "library","flippaper","sengoru","website","anonymous","head","advertisement","coug",
+             "pochen","respective","advertisements","papers","able","mobile","online","visitor",
+             "gmailcom","time","link","via","contact","julius","stella","adverts","wasswa","company",
+             "desktop","app","one","coug","epaper","various","companies","going","francis",
+             "close","list","date","muhindo","look","sign","paper","links","specific","news",
+             "account","new","using","category","visiongroup","may","money","com","gmail","websites",
+             "co","ug","made","much","vpg","well"
+             
+    )
+    docs <- tm_map(docs, removeWords,wordz) 
+    
     docs <- tm_map(docs, removePunctuation)
-  
+    
     docs <- tm_map(docs, stripWhitespace)
-   
+    
     dtm <- TermDocumentMatrix(docs)
     m <- as.matrix(dtm)
-   
+    
     v <- sort(rowSums(m),decreasing=TRUE)
     d <- data.frame(word = names(v),freq=v)
-   
+    
     set.seed(1234)
-    wordcloud(words = d$word, freq = d$freq, min.freq = 4, max.words=300, random.order=FALSE, rot.per=0.2,colors=brewer.pal(8, "Dark2"))
+    wordcloud(words = d$word, freq = d$freq, min.freq =20 , max.words=200, 
+              random.order=FALSE, rot.per=0.2,colors=brewer.pal(8, "Dark2"))
+    
+    
     
     
   })
@@ -285,115 +391,94 @@ shinyServer(function(input, output,session) {
                    
                    
                    selectInput("chat", "SENTIMENT ANALYSIS",
-                               c("select analysis tool","WORDCLOUD","CHAT","BAR GRAPH ANALYSIS","COUNTRY","TIME"), "Graphics")
+                               c("select analysis tool","WORDCLOUD","CHAT","ANALYSIS OF EMOTIONS","COUNTRY","TIME"), "Graphics")
+                  
+                  
+                   
       ),
       
       mainPanel(id="mypanel",
-                tags$br()  ,  
+            
                 plotOutput("kk")
       )
     ) 
     
     
   })
+  observeEvent(input$downloadModels,{
+    output("mod")
+  })
+ 
+  
+  
+  
+  
+  
+  
+  
   output$kk <- renderPlot({
     
     if (input$chat == "WORDCLOUD") { 
       mydata<-data()
-      mycorpus<-Corpus(VectorSource(mydata$Chat.content))
-      myfunction<-content_transformer(function(x,pattern) gsub(pattern,"",x))
+      docs <- Corpus(VectorSource(mydata$Chat.content))
+      toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+      docs <- tm_map(docs, toSpace, "/")
+      docs <- tm_map(docs, toSpace, "@")
+      docs <- tm_map(docs, toSpace, "\\|")
       
-      my_cleaned_corpus<-tm_map(mycorpus,myfunction,"/")
-      my_cleaned_corpus<-tm_map(my_cleaned_corpus,myfunction,"@")
-      my_cleaned_corpus<-tm_map(my_cleaned_corpus,myfunction,"\\|")
+      docs <- tm_map(docs, content_transformer(tolower))
       
-      my_cleaned_corpus<-tm_map(my_cleaned_corpus,content_transformer(tolower))
-      my_cleaned_corpus <- tm_map( my_cleaned_corpus, removeWords, c("chat","system","https","engoru","stellamaris","eatuhaire","assistant","joseph","simon","peter","vizuri.visiongroup.co.ug","www.visiongroup.co.ug","banyu","newvision.co.ug","closed","accepted","live","elizabeth","atuhaire","support","http","paul","josephbanyu","jbanyu","ochen","nabisere","peter")) 
-      my_cleaned_corpus<-tm_map(my_cleaned_corpus,removePunctuation)
-      my_cleaned_corpus<-tm_map(my_cleaned_corpus,stripWhitespace)
+      docs <- tm_map(docs, removeNumbers)
       
+      docs <- tm_map(docs, removeWords, stopwords("english"))
+      wordz<-c("chat","can","get","newvision","www","uganda","system","https"
+               ,"the","you","vision","group","engoru","stellamaris","eatuhaire"
+               ,"assistant","joseph","simon","peter","vizuri.visiongroup.co.ug",
+               "www.visiongroup.co.ug","banyu","newvision.co.ug","closed","accepted",
+               "live","elizabeth","atuhaire","support","http","paul","josephbanyu","jbanyu",
+               "ochen","nabisere","peter","office","article","gmailcom","inquiries","bukedde",
+               "click","directlysengoru","number","june","letter","daniel","stellalule",
+               "vpgvisiongroupcoug","samuel","denis","newspaper","anjana","also","phone","advertising",
+               "library","flippaper","sengoru","website","anonymous","head","advertisement","coug",
+               "pochen","respective","advertisements","papers","able","mobile","online","visitor",
+               "gmailcom","time","link","via","contact","julius","stella","adverts","wasswa","company",
+               "desktop","app","one","coug","epaper","various","companies","going","francis",
+               "close","list","date","muhindo","look","sign","paper","links","specific","news",
+               "account","new","using","category","visiongroup","may","money","com","gmail","websites",
+               "co","ug","made","much","vpg","well"
+               
+               )
+      docs <- tm_map(docs, removeWords,wordz) 
       
-      mytdm<-TermDocumentMatrix(my_cleaned_corpus)
-      m<-as.matrix(mytdm)
-      #View(m)
-      words<-sort(rowSums(m),decreasing = TRUE)
-      mydf<-data.frame(Word=names(words),freq=words)
-      #View(mydf)
-      wordcloud(words=mydf$Word,freq=mydf$freq,min.freq = 3,max.words = 500,random.order = FALSE,rot.per = 0.36,colors = brewer.pal(8,"Dark2")) 
+      docs <- tm_map(docs, removePunctuation)
       
+      docs <- tm_map(docs, stripWhitespace)
+      
+      dtm <- TermDocumentMatrix(docs)
+      m <- as.matrix(dtm)
+      
+      v <- sort(rowSums(m),decreasing=TRUE)
+      d <- data.frame(word = names(v),freq=v)
+      
+     set.seed(1234)
+     wordcloud(words = d$word, freq = d$freq, min.freq =20 , max.words=200, 
+               random.order=FALSE, rot.per=0.2,colors=brewer.pal(8, "Dark2"))
+     
+   
+      
+   
+         
     } 
-    else if(input$chat=="BAR GRAPH ANALYSIS"){
+    else if(input$chat=="ANALYSIS OF EMOTIONS"){
       mydata<- data()
-      operatives<-c('joseph','stellamaris','SimonPeter','atuhaire','PaulOchen')
-      dv<-c('joseph banyu','stellamaris Nabisere','Simon Peter  Engoru','atuhaire elizabeth','Paul Ochen')
-      rt<- 0;
-      jo<- 0;
-      st<- 0;
-      si<- 0;
-      at<- 0;
-      pa<- 0;
+      comments<-iconv(mydata$Chat.content)
+      s<-get_nrc_sentiment(comments)
       
-      for(i in 1:length(dv)){
-        for(row in 1:nrow(mydata)) {
-          
-          
-          
-          price <- mydata[row, "Chat.content"]
-          t<- grepl(dv[i], price)
-          if(t == TRUE ) {
-            
-            rt<- rt+1
-          }
-          
-        }
-        
-        if(dv[i]=='joseph banyu'){
-          jo<-rt
-          
-        }
-        else if(dv[i]=='stellamaris Nabisere'){
-          st<-(rt-jo)
-          
-        }
-        
-        else if(dv[i]=='Simon Peter  Engoru'){
-          si<-(rt-jo-st)
-        }
-        else if(dv[i]=='atuhaire elizabeth'){
-          at<-(rt-jo-st-si)
-          
-        }
-        
-        else if(dv[i]=='Paul Ochen'){
-          pa<-(rt-jo-st-si-at)
-          
-        }
-        
-        
-        
-        
-      }
-      
-      print(jo) 
-      print(st)
-      print(si)
-      print(at)
-      print(pa)
-      
-      x = c(jo,st,si,at,pa) 
-      
-      
-      
-      
-      real<-data.frame(operatives,x)
-      real
-      
-      
-      
-      barplot(real$x, las = 1, names.arg = real$operatives,col = brewer.pal(5, "Blues"), main ="BAR GRAPH SHOWING NUMBER OF CHATS OPERATIVES CONDUCTED WITH IN CHAT CONTENT",ylab = "Number of Chats") 
-      
-      
-      
+      barplot(colSums(s), las=2, col=rainbow(10) ,ylab = 'Emotional level' ,
+              main = 'BARGRAPH SHOWING EMOTIONAL REACTIONS OF CUSTOMERS',
+                    legend = c("Anger", "Anticipation","Disgust","Fear","Joy","Sadness","Suprise",
+                                "Trust","Negative","Positive"), 
+                    fill = c("red","orange","yellow","lightgreen","green","blue","blue","blue","purple","pink"),lwd=1)
       
     }
     else if(input$chat=="OTHER ANALYSIS"){
@@ -445,7 +530,7 @@ shinyServer(function(input, output,session) {
           
         ),
         
-        mainPanel(
+        mainPanel(id="mypanel",
           
           
           uiOutput("result"),
@@ -456,37 +541,47 @@ shinyServer(function(input, output,session) {
       
     }
     else if(input$chat=="CHAT"){
-      mydata <- data()
-      #mydata<-read.csv( mydata$datapath, header = input$header)
+      mydata<-data()
       docs <- Corpus(VectorSource(mydata$Chat.content))
-      #inspect(docs)
       toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
       docs <- tm_map(docs, toSpace, "/")
       docs <- tm_map(docs, toSpace, "@")
       docs <- tm_map(docs, toSpace, "\\|")
-      # Convert the text to lower case
+      
       docs <- tm_map(docs, content_transformer(tolower))
-      # Remove numbers
+      
       docs <- tm_map(docs, removeNumbers)
-      # Remove english common stopwords
-      #View(stopwords("english")) 
+      
       docs <- tm_map(docs, removeWords, stopwords("english"))
-      # Remove your own stop word
-      # specify your stopwords as a character vector
-      docs <- tm_map(docs, removeWords, c("chat","system","https","engoru","stellamaris","eatuhaire","assistant","joseph","simon","peter","vizuri.visiongroup.co.ug","www.visiongroup.co.ug","banyu","newvision.co.ug","closed","accepted","live","elizabeth","atuhaire","support","http","paul","josephbanyu","jbanyu","ochen","nabisere","peter")) 
-      # Remove punctuations
+      wordz<-c("chat","can","get","newvision","www","uganda","system","https"
+               ,"the","you","vision","group","engoru","stellamaris","eatuhaire"
+               ,"assistant","joseph","simon","peter","vizuri.visiongroup.co.ug",
+               "www.visiongroup.co.ug","banyu","newvision.co.ug","closed","accepted",
+               "live","elizabeth","atuhaire","support","http","paul","josephbanyu","jbanyu",
+               "ochen","nabisere","peter","office","article","gmailcom","inquiries","bukedde",
+               "click","directlysengoru","number","june","letter","daniel","stellalule",
+               "vpgvisiongroupcoug","samuel","denis","newspaper","anjana","also","phone","advertising",
+               "library","flippaper","sengoru","website","anonymous","head","advertisement","coug",
+               "pochen","respective","advertisements","papers","able","mobile","online","visitor",
+               "gmailcom","time","link","via","contact","julius","stella","adverts","wasswa","company",
+               "desktop","app","one","coug","epaper","various","companies","going","francis",
+               "close","list","date","muhindo","look","sign","paper","links","specific","news",
+               "account","new","using","category","visiongroup","may","money","com","gmail","websites",
+               "co","ug","made","much","vpg","well"
+               
+      )
+      docs <- tm_map(docs, removeWords,wordz) 
+      
       docs <- tm_map(docs, removePunctuation)
-      # Eliminate extra white spaces
+      
       docs <- tm_map(docs, stripWhitespace)
-      # Text stemming
-      # docs <- tm_map(docs, stemDocument)
+      
       dtm <- TermDocumentMatrix(docs)
       m <- as.matrix(dtm)
       
       v <- sort(rowSums(m),decreasing=TRUE)
       d <- data.frame(word = names(v),freq=v)
-    
-      
+  
       barplot(d[1:20,]$freq, las = 2, names.arg = d[1:20,]$word,col ="lightblue", main ="BAR GRAPH SHOWING 20 MOST USED WORDS IN THE CHAT CONTENT",ylab = "Word frequencies")
       
       
@@ -665,6 +760,9 @@ shinyServer(function(input, output,session) {
                     )
         )
         
+       
+        
+        
         
       ),
       
@@ -804,6 +902,9 @@ shinyServer(function(input, output,session) {
       sidebarPanel(
         selectInput("select_model", "STATISTICS",
                     c("select analysis tool","PIE CHART","BAR GRAPH"), "stat")
+        
+        
+        
       ),
       
       mainPanel(id="xxxx",
@@ -1139,10 +1240,10 @@ shinyServer(function(input, output,session) {
   
   #download visualization models
   
-  output$downloadModels <- downloadHandler(
+  output$down <- downloadHandler(
     filename = "Models.png",
     content = function(file) {
-      if(input$plot=="Bargraph"){
+      if(input$v_model=="BAR GRAPH"){
         png(file)
         bar<-ggplot(data(),type="l", aes(x=get((input$variablex)),y=get(input$variabley) ))+
           xlab(input$variablex)+
@@ -1152,7 +1253,7 @@ shinyServer(function(input, output,session) {
         dev.off()
         
       }
-      else if(input$plot=="piechart"){
+      else if(input$v_model=="piechart"){
         
         png(file)
         pie<-pie(aggregate(formula(paste0(".~",input$variabley)), data(), sum)[[input$variablex]], labels = aggregate(formula(paste0(".~",input$variabley)), data(), sum)[[input$variabley]])
@@ -1160,7 +1261,7 @@ shinyServer(function(input, output,session) {
         dev.off()
       }
       
-      else if(input$plot=="wordcloud"){
+      else if(input$v_modelt=="wordcloud"){
         png(file)
         word<- wordcloud(words = dframe$word, freq = dframe$freq, min.freq = 3,max.words=500, random.order=FALSE, rot.per=0.5,colors=brewer.pal(8, "Dark2"))#wordcloud2(dframe, size=0.5,fontWeight = "normal",max.words=200, minRotation = pi/6, maxRotation = pi/6,color=brewer.pal(8,"Dark2"))
         print(word)
