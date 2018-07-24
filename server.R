@@ -183,8 +183,8 @@ shinyServer(function(input, output,session) {
         fileInput("file","Upload file"),
         fluidRow(
       
-          selectInput("x","Download Model",choices=c("ID","Department")),
-          selectInput("y","Download Model",choices=c("Department","ID"))
+          selectInput("x","Variable x",choices=c("ID","Department")),
+          selectInput("y","Variable y",choices=c("Department","ID"))
           
         ),
         
@@ -203,7 +203,7 @@ shinyServer(function(input, output,session) {
     sidebarLayout(
       sidebarPanel(width = 3,
                    fluidRow(
-                     radioButtons("rad",label = "Select file input",choices = list("png","pdf")),
+                   
                      selectInput("v_model","Download Model",choices=c("select download","PIE CHART","BAR GRAPH","WORDCLOUD","CHAT","BARGRAPH ANALYSIS","COUNTRY","TIME")),
                      downloadButton(outputId = "down","Download")
                    )
@@ -214,8 +214,10 @@ shinyServer(function(input, output,session) {
     )
   }) 
   #Get data from the file and render it in a table  
+  
+    
   output$uploaded_data<-renderTable({
-    data() 
+    req(data()) 
     
   },height = 400,width = 1000)
   
@@ -239,7 +241,7 @@ shinyServer(function(input, output,session) {
   #plotting Bar graph using this funtion
   
   output$bargraph<-renderPlot({
-    mydata<- data()
+    mydata<- req(data())
     operatives<-c('joseph','stellamaris','SimonPeter','atuhaire','PaulOchen')
     dv<-c('joseph banyu','stellamaris Nabisere','Simon Peter  Engoru','atuhaire elizabeth','Paul Ochen')
     rt<- 0;
@@ -317,7 +319,7 @@ shinyServer(function(input, output,session) {
   
   #plotting pie chart using this funtion
   output$piechart<-renderPlot({
-    mydata<-data()
+    mydata<-req(data())
     piePlotData = aggregate(formula(paste0(".~",input$y)), mydata, sum)
    
     percent<-(piePlotData[[input$x]]/sum(piePlotData[[input$x]]))*100
@@ -335,7 +337,7 @@ shinyServer(function(input, output,session) {
   
   
   output$wordcloud<-renderPlot({
-    mydata<-data()
+    mydata<-req(data())
     docs <- Corpus(VectorSource(mydata$Chat.content))
     toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
     docs <- tm_map(docs, toSpace, "/")
@@ -406,7 +408,7 @@ shinyServer(function(input, output,session) {
     
   })
   observeEvent(input$downloadModels,{
-    output("mod")
+    output("downloadPlot")
   })
  
   
@@ -419,7 +421,7 @@ shinyServer(function(input, output,session) {
   output$kk <- renderPlot({
     
     if (input$chat == "WORDCLOUD") { 
-      mydata<-data()
+      mydata<-req(data())
       docs <- Corpus(VectorSource(mydata$Chat.content))
       toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
       docs <- tm_map(docs, toSpace, "/")
@@ -470,7 +472,7 @@ shinyServer(function(input, output,session) {
          
     } 
     else if(input$chat=="ANALYSIS OF EMOTIONS"){
-      mydata<- data()
+      mydata<- req(data())
       comments<-iconv(mydata$Chat.content)
       s<-get_nrc_sentiment(comments)
       
@@ -541,7 +543,7 @@ shinyServer(function(input, output,session) {
       
     }
     else if(input$chat=="CHAT"){
-      mydata<-data()
+      mydata<-req(data())
       docs <- Corpus(VectorSource(mydata$Chat.content))
       toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
       docs <- tm_map(docs, toSpace, "/")
@@ -588,7 +590,7 @@ shinyServer(function(input, output,session) {
       
     }
     else if(input$chat=="COUNTRY"){
-      mydata <- data()
+      mydata <- req(data())
       barplot(table(mydata$Country),
               main="Number of participants from different Countries",
               xlab="Country",
@@ -601,7 +603,7 @@ shinyServer(function(input, output,session) {
       
     }
     else if(input$chat=="TIME"){
-      mydata <- data()
+      mydata <- req(data())
       k<-c(0:23)
       y<-c(0:60)
       sum0<-0
@@ -783,20 +785,16 @@ shinyServer(function(input, output,session) {
   output$communicate<-renderUI({
     sidebarLayout(
       sidebarPanel(
-        textInput("from", "From:", value="asingwire50dallington@gmail.com"),
-        textInput("to", "To:", value="charismasharp@gmail.com"),
-        textInput("subject", "Subject:", value="xxxxxxxxxxx"),
-        fileInput("file_contents", label = "Upload file", 
-                  accept = c(
-                    "text/csv",
-                    "text/comma-separated-values,text/plain",
-                    ".csv")),
-        actionButton("send", "Send mail")
+        tags$br(),
+        tags$br(),
+        tags$b("If you have a registered gmail account,send email using link below"),
+        tags$br(),
+        tags$a("Click here to send email message", href="https://accounts.google.com/signin")
       ),
       
       
       mainPanel(    
-        aceEditor("message_body", value="write message here")
+      
       )
       
     )
@@ -820,7 +818,8 @@ shinyServer(function(input, output,session) {
                 to = recipient,
                 subject = subject,
                 body = body,
-                smtp = list(host.name = "smtp.gmail.com", port = 465, user.name = "kalema arnold", passwd = "KarnoldKK", ssl = TRUE),
+                smtp = list(host.name = "smtp.gmail.com", port =2525, user.name ="asingwire50dallington@gmail.com", 
+                            passwd = "Dallington100", ssl = TRUE),
                 authenticate = TRUE,
                 send = TRUE,
                 attach.files = input$file_contents
@@ -852,7 +851,7 @@ shinyServer(function(input, output,session) {
   })
   
   output$result <- renderText({
-    mydata<- data()
+    mydata<- req(data())
     rt<- 0;
     
     for (row in 1:nrow(mydata)) {
@@ -876,7 +875,7 @@ shinyServer(function(input, output,session) {
   
   
   output$datedisplay <- renderText({
-    mydata<- data() 
+    mydata<- req(data())
     r<- 0;
     
     for (row in 1:nrow(mydata)) {
@@ -1018,7 +1017,7 @@ shinyServer(function(input, output,session) {
   
   output$department_analysis<- renderPlot({
     
-    mydata<- data()
+    mydata<- req(data())
     sumu<-0
     sumt<-0
     sumuk<-0
@@ -1239,43 +1238,15 @@ shinyServer(function(input, output,session) {
   
   
   #download visualization models
-  
-  output$down <- downloadHandler(
-    filename = "Models.png",
-    content = function(file) {
-      if(input$v_model=="BAR GRAPH"){
-        png(file)
-        bar<-ggplot(data(),type="l", aes(x=get((input$variablex)),y=get(input$variabley) ))+
-          xlab(input$variablex)+
-          ylab(input$variabley)+
-          geom_bar(stat="identity",position ="dodge",color ="blue")
-        print(bar)
-        dev.off()
-        
-      }
-      else if(input$v_model=="piechart"){
-        
-        png(file)
-        pie<-pie(aggregate(formula(paste0(".~",input$variabley)), data(), sum)[[input$variablex]], labels = aggregate(formula(paste0(".~",input$variabley)), data(), sum)[[input$variabley]])
-        print(pie) 
-        dev.off()
-      }
-      
-      else if(input$v_modelt=="wordcloud"){
-        png(file)
-        word<- wordcloud(words = dframe$word, freq = dframe$freq, min.freq = 3,max.words=500, random.order=FALSE, rot.per=0.5,colors=brewer.pal(8, "Dark2"))#wordcloud2(dframe, size=0.5,fontWeight = "normal",max.words=200, minRotation = pi/6, maxRotation = pi/6,color=brewer.pal(8,"Dark2"))
-        print(word)
-        dev.off()
-      }
-      else{
-        png(file)
-        sent<-ggplot(data=TotalSentiment, aes(x = sentiment, y = count))+geom_bar(aes(fill = sentiment), stat = "identity")+theme(legend.position = "none")+xlab("Sentiments")+ylab("Count")+ggtitle("Total Sentiment Score")
-        print(sent)    
-        dev.off()
-      }
-    }
-    
-  )
  
+
+  output$downloadPlot <- downloadHandler(
+      if(input$v_model=="BAR GRAPH"){
+          filename = function() { paste(input$v_model, '.png', sep='') }
+          content = function(file) {
+          ggsave(file,plotOutput("bargraph"))
+  }
+      }
+  )
    
 })
