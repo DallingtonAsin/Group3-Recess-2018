@@ -67,7 +67,7 @@ barPlotChat<-function(){
 general_statistcs<-function(){
   
   #general statistcs and counts
-  stri_stats_general(docs)
+  #stri_stats_general(docs)
   findAssocs(dtm, terms = "get", corlimit = 0.5)
 }
 
@@ -141,6 +141,8 @@ barPlotstatus<-function(){
 
 #importingFile()
 #barPlot()
+#barPlotCountry()
 #wordCloud()
 #barPlotstatus()
 #barPlotdepartment()
+#general_statistcs()

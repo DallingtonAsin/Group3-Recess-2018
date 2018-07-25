@@ -12,8 +12,55 @@ library("ggplot2")
 
 #mydata<-read.csv(file.choose(), header = TRUE)
 mydata <- read.csv("~/Desktop/VisionGroupCiMJuly.csv", header = TRUE)
+#summ<- 0;
+
+
+
+
+#for (row in 1:nrow(mydata)) {
+#  price <- mydata[row, "Country"]
+  #date  <- stock[row, "date"]
+  
+ #if(price =="Japan") {
+  #  print(paste("On", date, 
+  #              "the stock price was", price))
+  # summ<- summ+1
+   
+   
+ #}
+  #View(price)
+  
+#}
+
+#summ
+
+
+
+
+rt<- 0;
+
+for (row in 1:nrow(mydata)) {
+  price <- mydata[row, "Chat.content"]
+  #date  <- stock[row, "date"]
+  t<- grepl("joseph", price)
+  if(t == TRUE) {
+    #  print(paste("On", date, 
+    #              "the stock price was", price))
+    rt<- rt+1
+    
+    
+  }
+  #View(price)
+  
+}
+
+rt
+
+
+
+
 docs <- Corpus(VectorSource(mydata$Chat.content))
-inspect(docs)
+#inspect(docs)
 toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
 docs <- tm_map(docs, toSpace, "/")
 docs <- tm_map(docs, toSpace, "@")
@@ -40,16 +87,16 @@ m <- as.matrix(dtm)
 v <- sort(rowSums(m),decreasing=TRUE)
 d <- data.frame(word = names(v),freq=v)
 #View(d)
-head(d, 20)
+#head(d, 20)
 
-set.seed(1234)
-wordcloud(words = d$word, freq = d$freq, min.freq = 1, max.words=1000, random.order=FALSE, rot.per=0.35,colors=brewer.pal(8, "Dark2"))
+#set.seed(1234)
+#wordcloud(words = d$word, freq = d$freq, min.freq = 1, max.words=1000, random.order=FALSE, rot.per=0.35,colors=brewer.pal(8, "Dark2"))
 
 
 #barplot(d[1:20,]$freq, las = 2, names.arg = d[1:20,]$word,col ="lightblue", main ="Most frequent words",ylab = "Word frequencies")
 # general statistcs and counts
 #stri_stats_general(docs)
-findAssocs(dtm, terms = "get", corlimit = 0.5)
+#findAssocs(dtm, terms = "get", corlimit = 0.5)
 
 
 
