@@ -11,6 +11,11 @@
 	text-align: center;
 	padding: 0px 0px;
 }
+#down{
+	background-color: black;
+	color:white;
+	margin-left: 10%;
+}
 label{
 	font-family: "Georgia", Times, "Times New Roman", serif;
 	margin-left: 9px;
@@ -25,7 +30,11 @@ label{
   	color: white;
   	margin-top: 0;
   }
-
+#HOME{
+	color:green;
+	font-size: 20px;
+	margin-left: 10%;
+}
 #clear{
 	background-color: black;
 	color: white;
@@ -73,10 +82,17 @@ h2{
 #mypanel{
 	font-family: "Times New Roman";
 	color:black;
-	height:300,
+	height:1000,
+	width:900;
 	font-weight: bold;
 	font-size: 12px;
 }
+b{
+font-family: "Times New Roman";
+font-size: 14px;	
+color: green;
+}
+
 h4{
 	font-family: "Times New Roman";
 	font-weight: bold;

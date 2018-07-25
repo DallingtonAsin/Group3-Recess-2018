@@ -23,6 +23,8 @@ library(shinyjs)
 library(stringr)
 library(googleVis)
 library(scatterplot3d)
+library(shinyalert)
+library(shinyBS)
 
 
 
@@ -63,8 +65,8 @@ shinyServer(function(input, output,session) {
     }
     if(sta>0){
       USER$Logged <- TRUE
-      output$well = renderText("Welcome Mr/Ms.")
-      output$valid = renderText(input$username)
+     
+     
     }
    
     
@@ -103,11 +105,12 @@ shinyServer(function(input, output,session) {
                       textOutput("message")
       ))
     } else {
-                   # logoutt<- reactiveValues(Logout = FALSE)
+      
+              
       
                    fluidPage(theme="css.css",
      
-                                 
+                             
                                  
                                  fileInput("file","Upload file")
                                  
@@ -118,11 +121,14 @@ shinyServer(function(input, output,session) {
                                )
                                  fluidRow(
                                     useShinyjs(),
+                                    
+                                   
                                   actionButton("logout","LOGOUT"),  
                                    tabsetPanel(id="navbar1",
-                                               tabPanel("HOME",textOutput("home")),
+                                               tabPanel("HOME",textOutput("home"),
+                                                        textOutput("valid"),textOutput("vali"),align='center',style="font-size:17.5px;margin-top:85px;font-family:Times New Roman;color:rgb(5,90,5);"),
                                                tabPanel("UPLOAD FILE",uiOutput("put_file")),
-                                               tabPanel("UPLOADED DATA",tableOutput("uploaded_data")),
+                                               tabPanel("UPLOADED DATA",tableOutput("uploaded_data"),style="margin-left:2.5%"),
                                                tabPanel("STATISTICS",uiOutput("statistics")),
                                               
                                                tabPanel("SENTIMENT ANALYSIS",uiOutput("simple")),
@@ -137,8 +143,15 @@ shinyServer(function(input, output,session) {
                                  
           
     } )
+  
+    output$home<-renderText("Welcome")
+    output$valid<-renderText(input$username) 
+    output$vali<-renderText("To New Vision Chat Analysis App") 
+    
+  
+  
   output$help<-renderUI({
-    mainPanel(
+    mainPanel(style="margin-left:10%",
      tags$h4("WELCOME TO NEW VISION APP USE GUIDELINES:"),
      
      tags$h5("Guideline 1:"),
@@ -184,7 +197,8 @@ shinyServer(function(input, output,session) {
         fluidRow(
       
           selectInput("x","Variable x",choices=c("ID","Department")),
-          selectInput("y","Variable y",choices=c("Department","ID"))
+          selectInput("y","Variable y",choices=c("Department","ID")),
+          style="margin-left:7%;margin-top:10.5%"
           
         ),
         
@@ -202,10 +216,11 @@ shinyServer(function(input, output,session) {
   output$downloads<-renderUI({
     sidebarLayout(
       sidebarPanel(width = 3,
+                   useShinyalert(),
                    fluidRow(
                    
-                     selectInput("v_model","Download Model",choices=c("select download","PIE CHART","BAR GRAPH","WORDCLOUD","CHAT","BARGRAPH ANALYSIS","COUNTRY","TIME")),
-                     downloadButton(outputId = "down","Download")
+                     selectInput("nameit","Download Model",choices=c("select download","PIE CHART","BAR GRAPH","WORDCLOUD","CHAT","TIME","ANALYSIS OF EMOTIONS","COUNTRY","SCATTER PLOT")),
+                     actionButton("down","Download"),style="margin-left:10%;margin-top:10.5%"
                    )
           
                    
@@ -336,6 +351,7 @@ shinyServer(function(input, output,session) {
   
   
   
+  
   output$wordcloud<-renderPlot({
     mydata<-req(data())
     docs <- Corpus(VectorSource(mydata$Chat.content))
@@ -393,7 +409,7 @@ shinyServer(function(input, output,session) {
                    
                    
                    selectInput("chat", "SENTIMENT ANALYSIS",
-                               c("select analysis tool","WORDCLOUD","CHAT","ANALYSIS OF EMOTIONS","COUNTRY","TIME"), "Graphics")
+                               c("select analysis tool","WORDCLOUD","CHAT","ANALYSIS OF EMOTIONS","COUNTRY","TIME","SCATTER PLOT"), "Graphics")
                   
                   
                    
@@ -406,9 +422,6 @@ shinyServer(function(input, output,session) {
     ) 
     
     
-  })
-  observeEvent(input$downloadModels,{
-    output("downloadPlot")
   })
  
   
@@ -584,7 +597,7 @@ shinyServer(function(input, output,session) {
       v <- sort(rowSums(m),decreasing=TRUE)
       d <- data.frame(word = names(v),freq=v)
   
-      barplot(d[1:20,]$freq, las = 2, names.arg = d[1:20,]$word,col ="lightblue", main ="BAR GRAPH SHOWING 20 MOST USED WORDS IN THE CHAT CONTENT",ylab = "Word frequencies")
+      barplot(d[1:20,]$freq, las = 2, names.arg = d[1:20,]$word,col ="blue", main ="BAR GRAPH SHOWING 20 MOST USED WORDS IN THE CHAT CONTENT",ylab = "Word frequencies")
       
       
       
@@ -602,10 +615,14 @@ shinyServer(function(input, output,session) {
       )
       
     }
+    else if(input$chat=="SCATTER PLOT"){
+      mydata<-req(data())
+      mydata$Minutes<- as.POSIXct(mydata$Minutes, format="%H:%M")
+      plot(mydata$Minutes, mydata$Wait.time/1000, xaxt='s', pch=10, las=1, xlab='Chat Starting Time(in minutes)', ylab='Waiting Time/1000')
+      axis.POSIXct(1, mydata$Minutes, format="%H:%M")
+    }
     else if(input$chat=="TIME"){
       mydata <- req(data())
-      k<-c(0:23)
-      y<-c(0:60)
       sum0<-0
       sum1<-0
       sum2<-0
@@ -631,105 +648,89 @@ shinyServer(function(input, output,session) {
       sum22<-0
       sum23<-0
       for (row in 1:nrow(mydata)) {
-        price <- mydata[row, "Chat.content"]
-        for(i in k){
-          for(j in y){
-            a<-str_pad(i,2,pad = '0')
-            b<-str_pad(j,2,pad = '0')
-            c<-str_pad(':',1,pad = '0')
-            
-            o<-paste0(a,c,b,c)
-            
-            t<- grepl(o, price)
-            if(t == TRUE) {
-              
-              if(str_extract(o,'^.{2}')=="00"){
-                sum0<-sum0+1
-              }
-              else if(str_extract(o,'^.{2}')=="01"){
-                sum1<-sum1+1
-              }
-              
-              else if(str_extract(o,'^.{2}')=="02"){
-                sum2<-sum2+1
-              }
-              else if(str_extract(o,'^.{2}')=="03"){
-                sum3<-sum3+1
-              }
-              else if(str_extract(o,'^.{2}')=="04"){
-                sum4<-sum4+1
-              }
-              else if(str_extract(o,'^.{2}')=="05"){
-                sum5<-sum5+1
-              }
-              else if(str_extract(o,'^.{2}')=="06"){
-                sum6<-sum6+1
-              }
-              else if(str_extract(o,'^.{2}')=="07"){
-                sum7<-sum7+1
-              }
-              else if(str_extract(o,'^.{2}')=="08"){
-                sum8<-sum8+1
-              }
-              else if(str_extract(o,'^.{2}')=="09"){
-                sum9<-sum9+1
-              }
-              else if(str_extract(o,'^.{2}')=="10"){
-                sum10<-sum10+1
-              } 
-              else if(str_extract(o,'^.{2}')=="11"){
-                sum11<-sum11+1
-              }
-              else if(str_extract(o,'^.{2}')=="12"){
-                sum12<-sum12+1
-              }
-              else if(str_extract(o,'^.{2}')=="13"){
-                sum13<-sum13+1
-              }
-              else if(str_extract(o,'^.{2}')=="14"){
-                sum14<-sum14+1
-              }
-              else if(str_extract(o,'^.{2}')=="15"){
-                sum15<-sum15+1
-              }
-              
-              else if(str_extract(o,'^.{2}')=="16"){
-                sum16<-sum16+1
-              }
-              
-              else if(str_extract(o,'^.{2}')=="17"){
-                
-                sum17<-sum17+1
-              }
-              
-              else if(str_extract(o,'^.{2}')=="18"){
-                
-                sum18<-sum18+1
-              }
-              else if(str_extract(o,'^.{2}')=="19"){
-                
-                sum19<-sum19+1
-              }
-              else if(str_extract(o,'^.{2}')=="20"){
-                
-                sum20<-sum20+1
-              }
-              else if(str_extract(o,'^.{2}')=="21"){
-                
-                sum21<-sum21+1
-              }
-              else if(str_extract(o,'^.{2}')=="22"){
-                
-                sum22<-sum22+1
-              }
-              else if(str_extract(o,'^.{2}')=="23"){
-                
-                sum23<-sum23+1
-              }
-              
-            }
-            
-          }
+        m<- mydata[row, "Minutes"]
+        if(str_extract(m,'^.{2}')=="00"){
+          sum0<-sum0+1
+        }
+        else if(str_extract(m,'^.{2}')=="01"){
+          sum1<-sum1+1
+        }
+        
+        else if(str_extract(m,'^.{2}')=="02"){
+          sum2<-sum2+1
+        }
+        else if(str_extract(m,'^.{2}')=="03"){
+          sum3<-sum3+1
+        }
+        else if(str_extract(m,'^.{2}')=="04"){
+          sum4<-sum4+1
+        }
+        else if(str_extract(m,'^.{2}')=="05"){
+          sum5<-sum5+1
+        }
+        else if(str_extract(m,'^.{2}')=="06"){
+          sum6<-sum6+1
+        }
+        else if(str_extract(m,'^.{2}')=="07"){
+          sum7<-sum7+1
+        }
+        else if(str_extract(m,'^.{2}')=="08"){
+          sum8<-sum8+1
+        }
+        else if(str_extract(m,'^.{2}')=="09"){
+          sum9<-sum9+1
+        }
+        else if(str_extract(m,'^.{2}')=="10"){
+          sum10<-sum10+1
+        } 
+        else if(str_extract(m,'^.{2}')=="11"){
+          sum11<-sum11+1
+        }
+        else if(str_extract(m,'^.{2}')=="12"){
+          sum12<-sum12+1
+        }
+        else if(str_extract(m,'^.{2}')=="13"){
+          sum13<-sum13+1
+        }
+        else if(str_extract(m,'^.{2}')=="14"){
+          sum14<-sum14+1
+        }
+        else if(str_extract(m,'^.{2}')=="15"){
+          sum15<-sum15+1
+        }
+        
+        else if(str_extract(m,'^.{2}')=="16"){
+          sum16<-sum16+1
+        }
+        
+        else if(str_extract(m,'^.{2}')=="17"){
+          
+          sum17<-sum17+1
+        }
+        
+        else if(str_extract(m,'^.{2}')=="18"){
+          
+          sum18<-sum18+1
+        }
+        else if(str_extract(m,'^.{2}')=="19"){
+          
+          sum19<-sum19+1
+        }
+        else if(str_extract(m,'^.{2}')=="20"){
+          
+          sum20<-sum20+1
+        }
+        else if(str_extract(m,'^.{2}')=="21"){
+          
+          sum21<-sum21+1
+        }
+        else if(str_extract(m,'^.{2}')=="22"){
+          
+          sum22<-sum22+1
+        }
+        else if(str_extract(m,'^.{2}')=="23"){
+          
+          sum23<-sum23+1
         }
         
       }
@@ -738,7 +739,8 @@ shinyServer(function(input, output,session) {
       xx<-c(sum0,sum1,sum2,sum3,sum4,sum5,sum6,sum7,sum8,sum9,sum10,sum11,sum12,sum13,sum14,sum15,sum16,sum17,sum18,sum19,sum20,sum21,sum22,sum23)
       rea<-data.frame(pe,xx)
       rea
-      barplot(rea$xx, las = 1, names.arg = rea$pe,col = brewer.pal(5, "Blues"), main ="BAR GRAPH SHOWING NUMBER OF ACTIVE CHATS ON DIFFERENT HOURS OF THE DAY ",ylab = "Average Number of Chat Sessions",xlab = "hours in 24 hour clock") 
+      barplot(rea$xx, las = 1, names.arg = rea$pe,col ="lightgreen", main ="Number of Chats Started between 00:00 to 23:60",ylab = "Number of Chats",xlab = "hours in 24 hour clock") 
+      x<-sum(sum0,sum1,sum2,sum3,sum4,sum5,sum6,sum7,sum8,sum9,sum10,sum11,sum12,sum13,sum14,sum15,sum16,sum17,sum18,sum19,sum20,sum21,sum22,sum23)
       
       
       
@@ -787,7 +789,7 @@ shinyServer(function(input, output,session) {
       sidebarPanel(
         tags$br(),
         tags$br(),
-        tags$b("If you have a registered gmail account,send email using link below"),
+        tags$b("If you have a registered gmail account,send email to appropriate Company personnel using link below"),
         tags$br(),
         tags$a("Click here to send email message", href="https://accounts.google.com/signin")
       ),
@@ -900,7 +902,7 @@ shinyServer(function(input, output,session) {
       
       sidebarPanel(
         selectInput("select_model", "STATISTICS",
-                    c("select analysis tool","PIE CHART","BAR GRAPH"), "stat")
+                    c("select analysis tool","DATA SUMMARY","PIE CHART","BAR GRAPH"), "stat")
         
         
         
@@ -923,11 +925,19 @@ shinyServer(function(input, output,session) {
     else if(input$select_model=="BAR GRAPH"){
       plotOutput("bargraph")
     }
+   
+    else if(input$select_model=="DATA SUMMARY"){
+      tableOutput("summary")
+    }
     
     
     
   })
+  output$summary<-renderTable({
   
+    summary(data())
+    
+  })
   
   
   
@@ -1219,34 +1229,377 @@ shinyServer(function(input, output,session) {
     
   })
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
   #download visualization models
- 
-
-  output$downloadPlot <- downloadHandler(
-      if(input$v_model=="BAR GRAPH"){
-          filename = function() { paste(input$v_model, '.png', sep='') }
-          content = function(file) {
-          ggsave(file,plotOutput("bargraph"))
-  }
+  observeEvent(input$down, {
+  
+    mydata<-req(data())
+    
+    if(input$nameit=='BAR GRAPH'){
+      pdf("PrintedManuals/bargraph.pdf",width=8,height = 6)
+      mydata<- req(data())
+      operatives<-c('joseph','stellamaris','SimonPeter','atuhaire','PaulOchen')
+      dv<-c('joseph banyu','stellamaris Nabisere','Simon Peter  Engoru','atuhaire elizabeth','Paul Ochen')
+      rt<- 0;
+      jo<- 0;
+      st<- 0;
+      si<- 0;
+      at<- 0;
+      pa<- 0;
+      
+      for(i in 1:length(dv)){
+        for(row in 1:nrow(mydata)) {
+          
+          
+          
+          price <- mydata[row, "Chat.content"]
+          t<- grepl(dv[i], price)
+          if(t == TRUE ) {
+            
+            rt<- rt+1
+          }
+          
+        }
+        
+        if(dv[i]=='joseph banyu'){
+          jo<-rt
+          
+        }
+        else if(dv[i]=='stellamaris Nabisere'){
+          st<-(rt-jo)
+          
+        }
+        
+        else if(dv[i]=='Simon Peter  Engoru'){
+          si<-(rt-jo-st)
+        }
+        else if(dv[i]=='atuhaire elizabeth'){
+          at<-(rt-jo-st-si)
+          
+        }
+        
+        else if(dv[i]=='Paul Ochen'){
+          pa<-(rt-jo-st-si-at)
+          
+        }
+        
+        
+        
+        
       }
-  )
+      
+      print(jo) 
+      print(st)
+      print(si)
+      print(at)
+      print(pa)
+      
+      x = c(jo,st,si,at,pa) 
+      
+      
+      
+      
+      real<-data.frame(operatives,x)
+      real
+      
+      
+      
+      barplot(real$x, las = 1,
+              main ="BAR GRAPH SHOWING NUMBER OF CHATS OPERATIVES CONDUCTED WITH IN CHAT CONTENT",ylab = "Number of Chats",
+              legend =operatives, 
+              col = c("green","yellow","red","purple","blue")) 
+      
+      shinyalert("Yes","Download complete!",type="success")
+      dev.off()
+
+    }
+    else if(input$nameit=='PIE CHART'){
+      pdf("PrintedManuals/piechart.pdf",width=8,height = 6)
+      mydata<-req(data())
+      piePlotData = aggregate(formula(paste0(".~",input$y)), mydata, sum)
+      
+      percent<-(piePlotData[[input$x]]/sum(piePlotData[[input$x]]))*100
+      percent<-round(percent,2)
+      
+      labels<-piePlotData[[input$y]]
+      
+      pie3D(piePlotData[[input$x]], main="Department Evaluation",labels=paste(labels,percent,"%"),explode=0.1,theta=pi/6,mar=c(0,0,0,0)
+            
+            
+      )
+      shinyalert("Yes","Download complete!",type="success")
+      dev.off()
+      
+    }
+    else if(input$nameit=='ANALYSIS OF EMOTIONS'){
+      pdf("PrintedManuals/EmotionalAnalysis.pdf",width=8,height = 6)
+      mydata<- req(data())
+      comments<-iconv(mydata$Chat.content)
+      s<-get_nrc_sentiment(comments)
+      
+      barplot(colSums(s), las=2, col=rainbow(10) ,ylab = 'Emotional level' ,
+              main = 'BARGRAPH SHOWING EMOTIONAL REACTIONS OF CUSTOMERS',
+              legend = c("Anger", "Anticipation","Disgust","Fear","Joy","Sadness","Suprise",
+                         "Trust","Negative","Positive"), 
+              fill = c("red","orange","yellow","lightgreen","green","blue","blue","blue","purple","pink"),lwd=1)
+      
+      shinyalert("Yes","Download complete!",type="success")
+      dev.off()
+      
+    }
+    else if(input$nameit=='WORDCLOUD'){
+      pdf("PrintedManuals/wordcloud.pdf",width=8,height=6)
+      mydata<-req(data())
+      docs <- Corpus(VectorSource(mydata$Chat.content))
+      toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+      docs <- tm_map(docs, toSpace, "/")
+      docs <- tm_map(docs, toSpace, "@")
+      docs <- tm_map(docs, toSpace, "\\|")
+      
+      docs <- tm_map(docs, content_transformer(tolower))
+      
+      docs <- tm_map(docs, removeNumbers)
+      
+      docs <- tm_map(docs, removeWords, stopwords("english"))
+      wordz<-c("chat","can","get","newvision","www","uganda","system","https"
+               ,"the","you","vision","group","engoru","stellamaris","eatuhaire"
+               ,"assistant","joseph","simon","peter","vizuri.visiongroup.co.ug",
+               "www.visiongroup.co.ug","banyu","newvision.co.ug","closed","accepted",
+               "live","elizabeth","atuhaire","support","http","paul","josephbanyu","jbanyu",
+               "ochen","nabisere","peter","office","article","gmailcom","inquiries","bukedde",
+               "click","directlysengoru","number","june","letter","daniel","stellalule",
+               "vpgvisiongroupcoug","samuel","denis","newspaper","anjana","also","phone","advertising",
+               "library","flippaper","sengoru","website","anonymous","head","advertisement","coug",
+               "pochen","respective","advertisements","papers","able","mobile","online","visitor",
+               "gmailcom","time","link","via","contact","julius","stella","adverts","wasswa","company",
+               "desktop","app","one","coug","epaper","various","companies","going","francis",
+               "close","list","date","muhindo","look","sign","paper","links","specific","news",
+               "account","new","using","category","visiongroup","may","money","com","gmail","websites",
+               "co","ug","made","much","vpg","well"
+               
+      )
+      docs <- tm_map(docs, removeWords,wordz) 
+      
+      docs <- tm_map(docs, removePunctuation)
+      
+      docs <- tm_map(docs, stripWhitespace)
+      
+      dtm <- TermDocumentMatrix(docs)
+      m <- as.matrix(dtm)
+      
+      v <- sort(rowSums(m),decreasing=TRUE)
+      d <- data.frame(word = names(v),freq=v)
+      
+      set.seed(1234)
+      wordcloud(words = d$word, freq = d$freq, min.freq =20 , max.words=200, 
+                random.order=FALSE, rot.per=0.2,colors=brewer.pal(8, "Dark2"))
+      shinyalert("Yes","Download complete!",type="success")
+      dev.off()
+   
+    }
+    else if(input$nameit=='CHAT'){
+      pdf("PrintedManuals/CHAT.pdf",width=8,height = 6)
+      mydata<-req(data())
+      docs <- Corpus(VectorSource(mydata$Chat.content))
+      toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+      docs <- tm_map(docs, toSpace, "/")
+      docs <- tm_map(docs, toSpace, "@")
+      docs <- tm_map(docs, toSpace, "\\|")
+      
+      docs <- tm_map(docs, content_transformer(tolower))
+      
+      docs <- tm_map(docs, removeNumbers)
+      
+      docs <- tm_map(docs, removeWords, stopwords("english"))
+      wordz<-c("chat","can","get","newvision","www","uganda","system","https"
+               ,"the","you","vision","group","engoru","stellamaris","eatuhaire"
+               ,"assistant","joseph","simon","peter","vizuri.visiongroup.co.ug",
+               "www.visiongroup.co.ug","banyu","newvision.co.ug","closed","accepted",
+               "live","elizabeth","atuhaire","support","http","paul","josephbanyu","jbanyu",
+               "ochen","nabisere","peter","office","article","gmailcom","inquiries","bukedde",
+               "click","directlysengoru","number","june","letter","daniel","stellalule",
+               "vpgvisiongroupcoug","samuel","denis","newspaper","anjana","also","phone","advertising",
+               "library","flippaper","sengoru","website","anonymous","head","advertisement","coug",
+               "pochen","respective","advertisements","papers","able","mobile","online","visitor",
+               "gmailcom","time","link","via","contact","julius","stella","adverts","wasswa","company",
+               "desktop","app","one","coug","epaper","various","companies","going","francis",
+               "close","list","date","muhindo","look","sign","paper","links","specific","news",
+               "account","new","using","category","visiongroup","may","money","com","gmail","websites",
+               "co","ug","made","much","vpg","well"
+               
+      )
+      docs <- tm_map(docs, removeWords,wordz) 
+      
+      docs <- tm_map(docs, removePunctuation)
+      
+      docs <- tm_map(docs, stripWhitespace)
+      
+      dtm <- TermDocumentMatrix(docs)
+      m <- as.matrix(dtm)
+      
+      v <- sort(rowSums(m),decreasing=TRUE)
+      d <- data.frame(word = names(v),freq=v)
+      
+      barplot(d[1:20,]$freq, las = 2, names.arg = d[1:20,]$word,col ="blue", main ="BAR GRAPH SHOWING 20 MOST USED WORDS IN THE CHAT CONTENT",ylab = "Word frequencies")
+      
+      shinyalert("Yes","Download complete!",type="success")
+      dev.off()
+      
+    }
+    else if(input$nameit=='COUNTRY'){
+      pdf("PrintedManuals/country.pdf",width=8,height = 6)
+      mydata <- req(data())
+      barplot(table(mydata$Country),
+              main="Number of participants from different Countries",
+              xlab="Country",
+              ylab="Number of participates",
+              border="red",
+              las = 2,
+              col="blue",
+              density=50
+      )
+      shinyalert("Yes","Download complete!",type="success")
+      dev.off()
+     
+    }
+   
+    else if(input$nameit=='SCATTER PLOT'){
+      pdf("PrintedManuals/scatter.pdf",width=8,height = 6)
+      mydata<-req(data())
+      mydata$Minutes<- as.POSIXct(mydata$Minutes, format="%H:%M")
+      plot(mydata$Minutes, mydata$Wait.time/1000, xaxt='s', pch=10, las=1, xlab='Chat Starting Time(in minutes)', ylab='Waiting Time/1000')
+      axis.POSIXct(1, mydata$Minutes, format="%H:%M")
+      shinyalert("Yes","Download complete!",type="success")
+      dev.off()
+      
+    }
+    else if(input$nameit=='TIME'){
+      pdf("PrintedManuals/TIME.pdf",width=8,height = 6)
+      mydata<-req(data())
+      sum0<-0
+      sum1<-0
+      sum2<-0
+      sum3<-0
+      sum4<-0
+      sum5<-0
+      sum6<-0
+      sum7<-0
+      sum8<-0
+      sum9<-0
+      sum10<-0
+      sum11<-0
+      sum12<-0
+      sum13<-0
+      sum14<-0
+      sum15<-0
+      sum16<-0
+      sum17<-0
+      sum18<-0
+      sum19<-0
+      sum20<-0
+      sum21<-0
+      sum22<-0
+      sum23<-0
+      for (row in 1:nrow(mydata)) {
+        m<- mydata[row, "Minutes"]
+        if(str_extract(m,'^.{2}')=="00"){
+          sum0<-sum0+1
+        }
+        else if(str_extract(m,'^.{2}')=="01"){
+          sum1<-sum1+1
+        }
+        
+        else if(str_extract(m,'^.{2}')=="02"){
+          sum2<-sum2+1
+        }
+        else if(str_extract(m,'^.{2}')=="03"){
+          sum3<-sum3+1
+        }
+        else if(str_extract(m,'^.{2}')=="04"){
+          sum4<-sum4+1
+        }
+        else if(str_extract(m,'^.{2}')=="05"){
+          sum5<-sum5+1
+        }
+        else if(str_extract(m,'^.{2}')=="06"){
+          sum6<-sum6+1
+        }
+        else if(str_extract(m,'^.{2}')=="07"){
+          sum7<-sum7+1
+        }
+        else if(str_extract(m,'^.{2}')=="08"){
+          sum8<-sum8+1
+        }
+        else if(str_extract(m,'^.{2}')=="09"){
+          sum9<-sum9+1
+        }
+        else if(str_extract(m,'^.{2}')=="10"){
+          sum10<-sum10+1
+        } 
+        else if(str_extract(m,'^.{2}')=="11"){
+          sum11<-sum11+1
+        }
+        else if(str_extract(m,'^.{2}')=="12"){
+          sum12<-sum12+1
+        }
+        else if(str_extract(m,'^.{2}')=="13"){
+          sum13<-sum13+1
+        }
+        else if(str_extract(m,'^.{2}')=="14"){
+          sum14<-sum14+1
+        }
+        else if(str_extract(m,'^.{2}')=="15"){
+          sum15<-sum15+1
+        }
+        
+        else if(str_extract(m,'^.{2}')=="16"){
+          sum16<-sum16+1
+        }
+        
+        else if(str_extract(m,'^.{2}')=="17"){
+          
+          sum17<-sum17+1
+        }
+        
+        else if(str_extract(m,'^.{2}')=="18"){
+          
+          sum18<-sum18+1
+        }
+        else if(str_extract(m,'^.{2}')=="19"){
+          
+          sum19<-sum19+1
+        }
+        else if(str_extract(m,'^.{2}')=="20"){
+          
+          sum20<-sum20+1
+        }
+        else if(str_extract(m,'^.{2}')=="21"){
+          
+          sum21<-sum21+1
+        }
+        else if(str_extract(m,'^.{2}')=="22"){
+          
+          sum22<-sum22+1
+        }
+        else if(str_extract(m,'^.{2}')=="23"){
+          
+          sum23<-sum23+1
+        }
+        
+      }
+      
+      pe<-c('00','01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23')
+      xx<-c(sum0,sum1,sum2,sum3,sum4,sum5,sum6,sum7,sum8,sum9,sum10,sum11,sum12,sum13,sum14,sum15,sum16,sum17,sum18,sum19,sum20,sum21,sum22,sum23)
+      rea<-data.frame(pe,xx)
+      rea
+      barplot(rea$xx, las = 1, names.arg = rea$pe,col ="lightblue", main ="Number of Chats Started between 00:00 to 23:60",ylab = "Number of Chats",xlab = "hours in 24 hour clock") 
+      x<-sum(sum0,sum1,sum2,sum3,sum4,sum5,sum6,sum7,sum8,sum9,sum10,sum11,sum12,sum13,sum14,sum15,sum16,sum17,sum18,sum19,sum20,sum21,sum22,sum23)
+      shinyalert("Yes","Download complete!",type="success")
+      dev.off()
+      
+    }
+    
+  })
+
+  
    
 })
